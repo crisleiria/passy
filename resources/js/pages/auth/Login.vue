@@ -9,13 +9,55 @@ import AuthBase from '@/layouts/AuthLayout.vue';
 import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
-import { Form, Head } from '@inertiajs/vue3';
+import { Form, Head, router } from '@inertiajs/vue3';
 import { LoaderCircle } from 'lucide-vue-next';
+import axios from 'axios';
+import { startAuthentication } from '@simplewebauthn/browser';
 
 defineProps<{
     status?: string;
     canResetPassword: boolean;
 }>();
+
+const passkeyAuth = () => {
+
+  axios.get('/settings/passkeys/authenticate-options')
+      .then(response => {
+        if(response.data){
+
+          startAuthentication({ optionsJSON : response.data})
+              .then((authResponse) => {
+
+                passkeyAuthenticate(authResponse)
+
+              })
+              .catch(error => {
+                console.log(error)
+              });
+
+
+        }
+      })
+      .catch(error => {
+        console.log(error)
+      });
+
+}
+
+const passkeyAuthenticate = (data: any) => {
+
+  axios.post('/passkeys/authenticate',
+      {answer: JSON.stringify(data)})
+      .then(response => {
+        if (response.data) {
+          router.get(response.data)
+        }
+      })
+      .catch(error => {
+        console.log(error)
+      });
+}
+
 </script>
 
 <template>
@@ -97,6 +139,21 @@ defineProps<{
                         class="h-4 w-4 animate-spin"
                     />
                     Log in
+                </Button>
+
+                <Button
+                    type="button"
+                    class="mt-2 w-full bg-blue-700 text-white hover:bg-blue-800 h-6"
+                    :tabindex="5"
+                    :disabled="processing"
+                    @click="passkeyAuth"
+                    data-test="passkey-button"
+                >
+                    <LoaderCircle
+                        v-if="processing"
+                        class="h-4 w-4 animate-spin"
+                    />
+                    Login with Passkey
                 </Button>
             </div>
 
