@@ -54,4 +54,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Passkey::class);
     }
+
+    public function passwords()
+    {
+        return $this->hasMany(Password::class);
+    }
 }
