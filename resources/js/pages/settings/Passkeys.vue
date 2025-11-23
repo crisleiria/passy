@@ -74,25 +74,19 @@ const registerPasskey = () => {
 }
 
 const createPasskey = () => {
-
-    /*
-    form.post('/settings/passkeys', {
-        onSuccess: () => form.reset(),
-    });
-    */
-
     axios.post('/settings/passkeys', {
-    name: form.name,
-    passkey: JSON.stringify(passkey.value)
-  })
+        name: form.name,
+        passkey: JSON.stringify(passkey.value)
+    })
     .then(response => {
-    if(response.data)
-        form.reset()
+        if(response.data) {
+            form.reset();
+            router.reload({ only: ['passkeys'] });
+        }
     })
     .catch(error => {
-    console.log(error)
+        console.log(error);
     });
-
 };
 </script>
 

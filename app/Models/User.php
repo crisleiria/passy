@@ -7,11 +7,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use ParagonIE\CipherSweet\BlindIndex;
+use ParagonIE\CipherSweet\EncryptedRow;
+use Spatie\LaravelCipherSweet\Concerns\UsesCipherSweet;
+use Spatie\LaravelCipherSweet\Contracts\CipherSweetEncrypted;
 
-class User extends Authenticatable
+class User extends Authenticatable implements CipherSweetEncrypted
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, TwoFactorAuthenticatable;
+    use HasFactory, Notifiable, TwoFactorAuthenticatable, UsesCipherSweet;
 
     /**
      * The attributes that are mass assignable.
@@ -58,5 +62,14 @@ class User extends Authenticatable
     public function passwords()
     {
         return $this->hasMany(Password::class);
+    }
+
+    public static function configureCipherSweet(EncryptedRow $encryptedRow): void
+    {
+        $encryptedRow
+            ->addField('email')
+            ->addField('name')
+            ->addBlindIndex('email', new BlindIndex('email_index'))
+            ->addBlindIndex('name', new BlindIndex('name_index'));;
     }
 }

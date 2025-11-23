@@ -21,7 +21,33 @@ class PasswordManagerController extends Controller
             ->cursorPaginate(15);
 
         return Inertia::render('Passwords', [
-            'passwords' => Inertia::merge(fn () => $passwords),
+            'passwords' => Inertia::merge(fn () => $passwords->items()),
+            'next_cursor' => fn () => $passwords->nextCursor()?->encode(),
         ]);
+    }
+
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'domain' => 'required|string|max:255',
+            'username' => 'required|string|max:255',
+            'password' => 'required|string',
+        ]);
+
+        $request->user()->passwords()->create($validated);
+
+        return redirect()->back();
+    }
+
+    public function destroy(Request $request, \App\Models\Password $password)
+    {
+        if ($request->user()->id !== $password->user_id) {
+            abort(403);
+        }
+
+        $password->delete();
+
+        return redirect()->back();
     }
 }
