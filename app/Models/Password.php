@@ -26,12 +26,12 @@ class Password extends Model //implements CipherSweetEncrypted
         return $this->belongsTo(User::class);
     }
 
-    public static function configureCipherSweet(EncryptedRow $encryptedRow): void
-    {
-        $encryptedRow
-            ->addField('password')
-            ->addField('username')
-            ->addBlindIndex('password', new BlindIndex('password_index'))
-            ->addBlindIndex('username', new BlindIndex('username_index'));
-    }
+//    public static function configureCipherSweet(EncryptedRow $encryptedRow): void
+//    {
+//        $encryptedRow
+//            ->addField('password')
+//            ->addField('username')
+//            ->addBlindIndex('password', new BlindIndex('password_index'))
+//            ->addBlindIndex('username', new BlindIndex('username_index'));
+//    }
 }

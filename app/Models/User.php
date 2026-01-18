@@ -64,12 +64,12 @@ class User extends Authenticatable //implements CipherSweetEncrypted
         return $this->hasMany(Password::class);
     }
 
-    public static function configureCipherSweet(EncryptedRow $encryptedRow): void
-    {
-        $encryptedRow
-            ->addField('email')
-            ->addField('name')
-            ->addBlindIndex('email', new BlindIndex('email_index'))
-            ->addBlindIndex('name', new BlindIndex('name_index'));;
-    }
+//    public static function configureCipherSweet(EncryptedRow $encryptedRow): void
+//    {
+//        $encryptedRow
+//            ->addField('email')
+//            ->addField('name')
+//            ->addBlindIndex('email', new BlindIndex('email_index'))
+//            ->addBlindIndex('name', new BlindIndex('name_index'));;
+//    }
 }

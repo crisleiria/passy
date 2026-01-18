@@ -5,6 +5,7 @@ import { Head, router, useForm } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 import { useDebounceFn, useIntersectionObserver } from '@vueuse/core';
 import { Copy, Eye, EyeOff, Plus, RefreshCw, Trash2 } from 'lucide-vue-next';
+import { deriveKey, decryptClientSide, encryptClientSide } from '@/lib/crypto';
 import {
     Dialog,
     DialogContent,
@@ -54,6 +55,41 @@ const passwordLength = ref(20);
 const includeSymbols = ref(true);
 const includeNumbers = ref(true);
 
+// Variáveis de Estado (Reativas)
+const masterPassword = ref('');
+const isVaultUnlocked = ref(false); // Controla se mostramos a lista ou o input de bloqueio
+const cryptoKey = ref(null);        // Guarda a chave derivada em memória (nunca na BD/Storage)
+const decryptedPasswords = ref([]); // Lista local para visualização
+
+// 1. Função para desbloquear o cofre
+const unlockVault = async () => {
+    if (!masterPassword.value) return;
+
+    try {
+        // Gera a chave a partir do que o utilizador escreveu
+        cryptoKey.value = await deriveKey(masterPassword.value);
+
+        // Percorre todas as passwords que vieram do servidor e tenta desencriptar
+        const promises = props.passwords.map(async (p) => {
+            return {
+                ...p,
+                // Mantemos o domínio visível (texto limpo), mas revelamos user/pass
+                username: await decryptClientSide(p.username, cryptoKey.value),
+                password: await decryptClientSide(p.password, cryptoKey.value),
+            };
+        });
+
+        // Espera que todas sejam desencriptadas
+        decryptedPasswords.value = await Promise.all(promises);
+
+        // Sucesso! Mostra a lista.
+        isVaultUnlocked.value = true;
+    } catch (error) {
+        console.error(error);
+        alert("Erro ao processar chaves. Verifique a consola.");
+    }
+};
+
 const generatePassword = () => {
     const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const numbers = '0123456789';
@@ -73,10 +109,33 @@ const generatePassword = () => {
 
 import { store } from '@/routes/passwords';
 
-// ...
+// const submit = () => {
+//     form.post(store(), {
+//         onSuccess: () => {
+//             isAddModalOpen.value = false;
+//             form.reset();
+//         },
+//     });
+// };
 
-const submit = () => {
-    form.post(store(), {
+const createPassword = async () => {
+    if (!cryptoKey.value) {
+        alert("O cofre precisa de estar desbloqueado para guardar dados!");
+        return;
+    }
+
+    // Prepara os dados encriptados para enviar ao Laravel
+    const encryptedUsername = await encryptClientSide(form.username, cryptoKey.value);
+    const encryptedPassword = await encryptClientSide(form.password, cryptoKey.value);
+
+    // Usa um form temporário ou envia manualmente
+    const encryptedForm = useForm({
+        domain: form.domain, // Domínio vai em texto limpo (para pesquisa)
+        username: encryptedUsername,
+        password: encryptedPassword,
+    });
+
+    encryptedForm.post(store(), {
         onSuccess: () => {
             isAddModalOpen.value = false;
             form.reset();
@@ -152,7 +211,30 @@ const deletePassword = (id: number) => {
     <Head title="Passwords" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex h-full flex-1 flex-col gap-4 p-4">
+        <div v-if="!isVaultUnlocked" class="flex flex-col items-center justify-center py-10 space-y-4">
+            <h2 class="text-2xl font-bold text-gray-800">🔐 Cofre Bloqueado</h2>
+            <p class="text-gray-500">
+                Os seus dados estão encriptados. Insira a sua <span class="font-bold">Master Password</span>
+                (a mesma que definiu no seu cérebro, não a Passkey) para desencriptar localmente.
+            </p>
+
+            <div class="flex gap-2">
+                <input
+                    v-model="masterPassword"
+                    type="password"
+                    class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                    placeholder="Master Password..."
+                    @keyup.enter="unlockVault"
+                >
+                <button
+                    @click="unlockVault"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded"
+                >
+                    Desbloquear
+                </button>
+            </div>
+        </div>
+        <div v-else class="flex h-full flex-1 flex-col gap-4 p-4">
             <div class="mx-auto w-full max-w-4xl">
                 <!-- Search Bar and Add Button -->
                 <div class="mb-6 flex items-center gap-4">
@@ -179,7 +261,7 @@ const deletePassword = (id: number) => {
                                     Add a new password to your vault.
                                 </DialogDescription>
                             </DialogHeader>
-                            <form @submit.prevent="submit" class="space-y-4">
+                            <form @submit.prevent="createPassword" class="space-y-4">
                                 <div class="space-y-2">
                                     <Label for="domain">Domain</Label>
                                     <Input
@@ -269,7 +351,7 @@ const deletePassword = (id: number) => {
                 <!-- Password List -->
                 <div class="space-y-2">
                     <div
-                        v-for="item in passwords"
+                        v-for="item in decryptedPasswords"
                         :key="item.id"
                         class="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
                     >
