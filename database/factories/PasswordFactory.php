@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Facades\Crypt;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Password>
@@ -19,7 +20,7 @@ class PasswordFactory extends Factory
         return [
             'domain' => $this->faker->domainName(),
             'username' => $this->faker->userName(),
-            'password' => $this->faker->password(),
+            'password' => Crypt::encryptString($this->faker->password()),
             'icon_path' => $this->faker->imageUrl(64, 64),
         ];
     }

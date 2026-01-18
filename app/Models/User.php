@@ -12,10 +12,10 @@ use ParagonIE\CipherSweet\EncryptedRow;
 use Spatie\LaravelCipherSweet\Concerns\UsesCipherSweet;
 use Spatie\LaravelCipherSweet\Contracts\CipherSweetEncrypted;
 
-class User extends Authenticatable implements CipherSweetEncrypted
+class User extends Authenticatable //implements CipherSweetEncrypted
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, TwoFactorAuthenticatable, UsesCipherSweet;
+    use HasFactory, Notifiable, TwoFactorAuthenticatable;//, UsesCipherSweet;
 
     /**
      * The attributes that are mass assignable.

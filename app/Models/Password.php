@@ -10,9 +10,9 @@ use ParagonIE\CipherSweet\EncryptedRow;
 use Spatie\LaravelCipherSweet\Concerns\UsesCipherSweet;
 use Spatie\LaravelCipherSweet\Contracts\CipherSweetEncrypted;
 
-class Password extends Model implements CipherSweetEncrypted
+class Password extends Model //implements CipherSweetEncrypted
 {
-    use HasFactory, UsesCipherSweet;
+    use HasFactory;//, UsesCipherSweet;
 
     protected $fillable = [
         'domain',
