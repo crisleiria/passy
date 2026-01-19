@@ -15,10 +15,10 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        User::factory(100)
-            //->hasPasswords(10)
-            ->create([
-                'password' => 'P@ssw0rd',
-            ]);
+//        User::factory(100)
+//            //->hasPasswords(10)
+//            ->create([
+//                'password' => 'P@ssw0rd',
+//            ]);
     }
 }

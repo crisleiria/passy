@@ -6,6 +6,7 @@ import { toUrl, urlIsActive } from '@/lib/utils';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit as passkeys } from '@/routes/passkeys';
 import { edit as editPassword } from '@/routes/password';
+import { edit as editPin } from '@/routes/pin';
 import { edit as editProfile } from '@/routes/profile';
 import { show } from '@/routes/two-factor';
 import { type NavItem } from '@/types';
@@ -16,14 +17,18 @@ const sidebarNavItems: NavItem[] = [
         title: 'Profile',
         href: editProfile(),
     },
+    // {
+    //     title: 'Password',
+    //     href: editPassword(),
+    // },
     {
-        title: 'Password',
-        href: editPassword(),
+        title: 'PIN',
+        href: editPin(),
     },
-    {
-        title: 'Two-Factor Auth',
-        href: show(),
-    },
+    // {
+    //     title: 'Two-Factor Auth',
+    //     href: show(),
+    // },
     {
         title: 'PassKeys',
         href: passkeys(),

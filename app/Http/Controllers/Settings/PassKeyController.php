@@ -36,7 +36,11 @@ class PassKeyController extends Controller
     public function edit(Request $request): Response
     {
         return Inertia::render('settings/Passkeys', [
-            'passkeys' => $request->user()->passkeys,
+            'passkeys' => $request->user()->passkeys->map(fn($passkey) => [
+                'id' => $passkey->id,
+                'name' => $passkey->name,
+                'created_at' => $passkey->created_at,
+            ]),
         ]);
     }
 
@@ -45,10 +49,13 @@ class PassKeyController extends Controller
      */
     public function registerOptions(Request $request)
     {
+        // Get hostname without port
+        $hostname = parse_url(config('app.url'), PHP_URL_HOST);
+
         $options = new PublicKeyCredentialCreationOptions(
             rp: new PublicKeyCredentialRpEntity(
                 name: config('app.name'),
-                id: parse_url(config('app.url'), PHP_URL_HOST),
+                id: $hostname,
             ),
             user: new PublicKeyCredentialUserEntity(
                 name: $request->user()->email,
@@ -84,23 +91,35 @@ class PassKeyController extends Controller
         }
 
         try {
+            // Get hostname without port
+            $hostname = parse_url($request->getSchemeAndHttpHost(), PHP_URL_HOST);
+
+            // Configure ceremony step manager to allow localhost origins
+            $ceremonyStepManagerFactory = new CeremonyStepManagerFactory();
+            $ceremonyStepManagerFactory->setAllowedOrigins([
+                'http://localhost:8000',
+                'https://localhost:8000',
+                'https://passy.test'
+            ]);
+
             $publicKeyCredentialSource = AuthenticatorAttestationResponseValidator::create(
-                (new CeremonyStepManagerFactory)->creationCeremony()
+                $ceremonyStepManagerFactory->creationCeremony()
             )->check(
                 authenticatorAttestationResponse: $publicKeyCredential->response,
                 publicKeyCredentialCreationOptions: Session::get('passkey-registration-options'),
-                host: $request->getHost(),
+                host: $hostname,
             );
         } catch (\Throwable $e) {
+            \Log::error('Passkey creation error: ' . $e->getMessage());
 
             throw ValidationException::withMessages([
-                'name' => 'Then given passkey is invalid',
+                'name' => 'Then given passkey is invalid: ' . $e->getMessage(),
             ])->errorBag('name');
         }
 
         $request->user()->passkeys()->create([
             'name' => $validated['name'],
-            'credential_id' => json_decode($validated['passkey'])->rawId,
+            'credential_id' => $publicKeyCredentialSource->publicKeyCredentialId,
             'data' => JsonSerializer::serialize($publicKeyCredentialSource)
         ]);
 

@@ -11,6 +11,14 @@ class Passkey extends Pivot
 
     protected $guarded = [];
 
+    /**
+     * The attributes that should be hidden for serialization.
+     */
+    protected $hidden = [
+        'credential_id',
+        'data',
+    ];
+
     public function user()
     {
         return $this->belongsTo(User::class);

@@ -85,7 +85,10 @@ const createPasskey = () => {
         }
     })
     .catch(error => {
-        console.log(error);
+        console.log('Error creating passkey:', error);
+        console.log('Error response:', error.response?.data);
+        console.log('Passkey data:', passkey.value);
+        alert('Erro ao guardar passkey: ' + (error.response?.data?.message || error.message));
     });
 };
 </script>

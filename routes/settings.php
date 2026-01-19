@@ -24,6 +24,10 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('settings/Appearance');
     })->name('appearance.edit');
 
+    Route::get('settings/pin', function () {
+        return Inertia::render('settings/Pin');
+    })->name('pin.edit');
+
     Route::get('settings/two-factor', [TwoFactorAuthenticationController::class, 'show'])
         ->name('two-factor.show');
 
