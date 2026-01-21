@@ -13,6 +13,7 @@ import axios from 'axios';
 import { startAuthentication } from '@simplewebauthn/browser';
 import {
     deriveKeyFromPIN,
+    unwrapMasterKey,
     wrapMasterKey,
     importKeyFromBase64,
     generateSalt,
@@ -64,6 +65,11 @@ const loginWithWebAuthn = async () => {
 
         const authResponse = await startAuthentication({ optionsJSON: optionsRes.data });
 
+        await axios.post('/auth/webauthn/login', {
+            credential: JSON.stringify(authResponse),
+            email: email.value,
+        });
+
         // Redirect to passwords without asking for PIN
         // PIN will be requested when user tries to view/copy/add passwords
         router.get('/passwords');
@@ -102,6 +108,15 @@ const loginWithMasterKey = async () => {
         error.value = err.response?.data?.error || 'Master Key inválida';
         processing.value = false;
     }
+};
+
+// Reset PIN with Master Key
+const openResetPinModal = () => {
+    resetMasterKey.value = '';
+    resetNewPin.value = '';
+    resetNewPinConfirm.value = '';
+    resetError.value = '';
+    showResetPinModal.value = true;
 };
 
 const resetPinWithMasterKey = async () => {
