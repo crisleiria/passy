@@ -60,6 +60,19 @@ export async function importKeyFromBase64(base64Key) {
 }
 
 /**
+ * Compute SHA-256 hash of Master Key (for server-side validation)
+ * Hash is computed client-side so server never sees raw key
+ * @param {string} masterKeyBase64 - Master Key in Base64 format
+ * @returns {string} Hex-encoded SHA-256 hash
+ */
+export async function hashMasterKey(masterKeyBase64) {
+    const data = str2ab(masterKeyBase64);
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
  * Derive AES-256 key from PIN using PBKDF2
  * @param {string} pin - User's PIN
  * @param {Uint8Array|string} salt - Salt (ArrayBuffer or Base64)
@@ -143,22 +156,29 @@ export async function decryptClientSide(encryptedBase64, key) {
     return new TextDecoder().decode(decryptedBuffer);
 }
 
-// Legacy function for backward compatibility
-export async function deriveKey(password, salt = 'salt_fixo_do_projeto_passy') {
-    const keyMaterial = await window.crypto.subtle.importKey(
-        'raw', str2ab(password), { name: 'PBKDF2' }, false, ['deriveKey']
-    );
-
-    return window.crypto.subtle.deriveKey(
-        {
-            name: 'PBKDF2',
-            salt: str2ab(salt),
-            iterations: 100000,
-            hash: 'SHA-256',
-        },
-        keyMaterial,
-        { name: 'AES-GCM', length: 256 },
-        false,
-        ['encrypt', 'decrypt']
-    );
-}
+// ⚠️ LEGACY FUNCTION - COMMENTED OUT (NOT IN USE)
+// This function has security issues:
+// 1. Fixed default salt ('salt_fixo_do_projeto_passy') - allows rainbow table attacks
+// 2. Lower iteration count (100k vs 600k) - easier to brute force
+// 3. Not used anywhere in the codebase - use deriveKeyFromPIN() instead
+//
+// Kept commented for historical reference only. DO NOT USE.
+//
+// export async function deriveKey(password, salt = 'salt_fixo_do_projeto_passy') {
+//     const keyMaterial = await window.crypto.subtle.importKey(
+//         'raw', str2ab(password), { name: 'PBKDF2' }, false, ['deriveKey']
+//     );
+//
+//     return window.crypto.subtle.deriveKey(
+//         {
+//             name: 'PBKDF2',
+//             salt: str2ab(salt),
+//             iterations: 100000,
+//             hash: 'SHA-256',
+//         },
+//         keyMaterial,
+//         { name: 'AES-GCM', length: 256 },
+//         false,
+//         ['encrypt', 'decrypt']
+//     );
+// }

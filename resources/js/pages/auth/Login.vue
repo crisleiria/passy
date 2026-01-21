@@ -11,13 +11,13 @@ import { LoaderCircle, Fingerprint, Key, RefreshCw } from 'lucide-vue-next';
 import { ref } from 'vue';
 import axios from 'axios';
 import { startAuthentication } from '@simplewebauthn/browser';
-import { 
-    deriveKeyFromPIN, 
-    unwrapMasterKey, 
+import {
+    deriveKeyFromPIN,
     wrapMasterKey,
     importKeyFromBase64,
     generateSalt,
-    arrayBufferToBase64
+    arrayBufferToBase64,
+    hashMasterKey
 } from '@/lib/crypto';
 import {
     Dialog,
@@ -64,11 +64,6 @@ const loginWithWebAuthn = async () => {
 
         const authResponse = await startAuthentication({ optionsJSON: optionsRes.data });
 
-        const loginRes = await axios.post('/auth/webauthn/login', {
-            credential: JSON.stringify(authResponse),
-            email: email.value,
-        });
-
         // Redirect to passwords without asking for PIN
         // PIN will be requested when user tries to view/copy/add passwords
         router.get('/passwords');
@@ -92,8 +87,13 @@ const loginWithMasterKey = async () => {
 
     try {
         await importKeyFromBase64(masterKeyInput.value.trim());
+
+        // Compute hash client-side (server never sees raw key)
+        const masterKeyHash = await hashMasterKey(masterKeyInput.value.trim());
+
         await axios.post('/auth/webauthn/login-master-key', {
             email: email.value,
+            master_key_hash: masterKeyHash,
         });
         router.get('/passwords');
 
@@ -102,15 +102,6 @@ const loginWithMasterKey = async () => {
         error.value = err.response?.data?.error || 'Master Key inválida';
         processing.value = false;
     }
-};
-
-// Reset PIN with Master Key
-const openResetPinModal = () => {
-    resetMasterKey.value = '';
-    resetNewPin.value = '';
-    resetNewPinConfirm.value = '';
-    resetError.value = '';
-    showResetPinModal.value = true;
 };
 
 const resetPinWithMasterKey = async () => {
@@ -146,11 +137,14 @@ const resetPinWithMasterKey = async () => {
         // 3. Wrap the Master Key with the new PIN-derived key
         const newWrappedMasterKey = await wrapMasterKey(masterKey, newWrappingKey);
 
-        // 4. Send to server
+        // 4. Compute hash for server validation
+        const masterKeyHash = await hashMasterKey(resetMasterKey.value.trim());
+
+        // 5. Send to server (no email needed - uses Auth::user())
         await axios.post('/auth/webauthn/reset-pin', {
-            email: email.value,
             encrypted_master_key: newWrappedMasterKey,
             pin_salt: newSaltBase64,
+            master_key_hash: masterKeyHash,
         });
 
         // 5. Success!

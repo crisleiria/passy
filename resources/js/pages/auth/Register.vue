@@ -17,7 +17,8 @@ import {
     deriveKeyFromPIN,
     wrapMasterKey,
     exportKeyToBase64,
-    arrayBufferToBase64
+    arrayBufferToBase64,
+    hashMasterKey
 } from '@/lib/crypto';
 import {
     Dialog,
@@ -80,11 +81,15 @@ const registerWithWebAuthn = async () => {
         // 5. Start WebAuthn registration (Windows Hello)
         const regResponse = await startRegistration({ optionsJSON: optionsRes.data });
 
-        // 6. Complete registration on server
+        // 6. Compute hash of Master Key (client-side, for login validation)
+        const masterKeyHash = await hashMasterKey(masterKeyBase64);
+
+        // 7. Complete registration on server
         await axios.post('/auth/webauthn/register', {
             credential: JSON.stringify(regResponse),
             encrypted_master_key: wrappedMasterKey,
             pin_salt: saltBase64,
+            master_key_hash: masterKeyHash,
         });
 
         // 7. Show Master Key modal (no sessionStorage - will ask PIN for each action)

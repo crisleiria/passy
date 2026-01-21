@@ -23,6 +23,7 @@ class User extends Authenticatable
         'password',
         'encrypted_master_key',
         'pin_salt',
+        'master_key_hash',
     ];
 
     /**

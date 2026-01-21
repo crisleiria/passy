@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, usePage } from '@inertiajs/vue3';
+import { Head } from '@inertiajs/vue3';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import HeadingSmall from '@/components/HeadingSmall.vue';
 import { Button } from '@/components/ui/button';
@@ -16,9 +16,12 @@ import {
     importKeyFromBase64,
     generateSalt,
     arrayBufferToBase64,
+    exportKeyToBase64,
+    hashMasterKey,
 } from '@/lib/crypto';
-
-const page = usePage();
+import AppLayout from '@/layouts/AppLayout.vue';
+import type { BreadcrumbItem } from '@/types';
+import { edit } from '@/routes/pin';
 
 // Current PIN verification
 const currentPin = ref('');
@@ -36,6 +39,13 @@ const masterKeyNewPinConfirm = ref('');
 const masterKeyError = ref('');
 const masterKeySuccess = ref('');
 const masterKeyProcessing = ref(false);
+
+const breadcrumbItems: BreadcrumbItem[] = [
+    {
+        title: 'PassKeys settings',
+        href: edit().url,
+    },
+];
 
 // Change PIN with current PIN
 const changePinWithCurrentPin = async () => {
@@ -75,22 +85,20 @@ const changePinWithCurrentPin = async () => {
         // 3. Generate new salt and wrap master key with new PIN
         const newSalt = generateSalt();
         const newSaltBase64 = arrayBufferToBase64(newSalt);
-        console.log('Old salt:', pin_salt);
-        console.log('New salt:', newSaltBase64);
-        
         const newUnwrapKey = await deriveKeyFromPIN(newPin.value, newSalt);
         const newWrappedMasterKey = await wrapMasterKey(masterKey, newUnwrapKey);
-        
-        console.log('Old encrypted_master_key:', encrypted_master_key);
-        console.log('New encrypted_master_key:', newWrappedMasterKey);
 
-        // 4. Update on server
+        // 4. Compute hash for validation
+        const masterKeyBase64 = await exportKeyToBase64(masterKey);
+        const masterKeyHash = await hashMasterKey(masterKeyBase64);
+
+        // 5. Update on server (no email - uses Auth::user())
         const response = await axios.post('/auth/webauthn/reset-pin', {
-            email: page.props.auth.user.email,
             encrypted_master_key: newWrappedMasterKey,
             pin_salt: newSaltBase64,
+            master_key_hash: masterKeyHash,
         });
-        
+
         console.log('Server response:', response.data);
 
         success.value = 'PIN alterado com sucesso!';
@@ -136,19 +144,28 @@ const changePinWithMasterKey = async () => {
         const newUnwrapKey = await deriveKeyFromPIN(masterKeyNewPin.value, newSalt);
         const newWrappedMasterKey = await wrapMasterKey(masterKey, newUnwrapKey);
 
-        // 3. Update on server
+        // 3. Compute hash for validation
+        const masterKeyHash = await hashMasterKey(masterKeyInput.value.trim());
+
+        // 4. Update on server (no email - uses Auth::user())
         await axios.post('/auth/webauthn/reset-pin', {
-            email: page.props.auth.user.email,
             encrypted_master_key: newWrappedMasterKey,
             pin_salt: newSaltBase64,
+            master_key_hash: masterKeyHash,
         });
 
+        // Show success message in the Master Key form
         masterKeySuccess.value = 'PIN alterado com sucesso!';
         masterKeyInput.value = '';
         masterKeyNewPin.value = '';
         masterKeyNewPinConfirm.value = '';
-        showMasterKeyReset.value = false;
         masterKeyProcessing.value = false;
+
+        // Close form after 2 seconds so user sees the message
+        setTimeout(() => {
+            showMasterKeyReset.value = false;
+            masterKeySuccess.value = '';
+        }, 2500);
 
     } catch (err: any) {
         console.error('Master key PIN reset error:', err);
@@ -159,6 +176,7 @@ const changePinWithMasterKey = async () => {
 </script>
 
 <template>
+    <AppLayout :breadcrumbs="breadcrumbItems">
     <Head title="PIN Settings" />
 
     <SettingsLayout>
@@ -306,4 +324,5 @@ const changePinWithMasterKey = async () => {
             </div>
         </div>
     </SettingsLayout>
+    </AppLayout>
 </template>

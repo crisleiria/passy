@@ -80,6 +80,7 @@ class WebAuthnAuthController extends Controller
             'credential' => 'required|string',
             'encrypted_master_key' => 'required|string',
             'pin_salt' => 'required|string',
+            'master_key_hash' => 'required|string|size:64',
         ]);
 
         $sessionData = Session::get('webauthn_register');
@@ -99,7 +100,7 @@ class WebAuthnAuthController extends Controller
         try {
             $factory = new CeremonyStepManagerFactory();
             // Allow localhost for development
-            $factory->setAllowedOrigins(['http://localhost:8000', 'http://localhost','https://passy.test'], true);
+            $factory->setAllowedOrigins(['http://localhost:8000', 'http://localhost', 'https://passy.test'], true);
 
             $publicKeyCredentialSource = AuthenticatorAttestationResponseValidator::create(
                 $factory->creationCeremony()
@@ -119,6 +120,7 @@ class WebAuthnAuthController extends Controller
             'password' => null, // No password needed
             'encrypted_master_key' => $request->encrypted_master_key,
             'pin_salt' => $request->pin_salt,
+            'master_key_hash' => $request->master_key_hash,
         ]);
 
         // Store passkey
@@ -206,7 +208,7 @@ class WebAuthnAuthController extends Controller
 
         try {
             $factory = new CeremonyStepManagerFactory();
-            $factory->setAllowedOrigins(['http://localhost:8000', 'http://localhost','https://passy.test'], true);
+            $factory->setAllowedOrigins(['http://localhost:8000', 'http://localhost', 'https://passy.test'], true);
 
             $publicKeyCredentialSource = AuthenticatorAssertionResponseValidator::create(
                 $factory->requestCeremony()
@@ -243,6 +245,7 @@ class WebAuthnAuthController extends Controller
     {
         $request->validate([
             'email' => 'required|email',
+            'master_key_hash' => 'required|string|size:64',
         ]);
 
         $user = User::where('email', $request->email)->first();
@@ -250,7 +253,11 @@ class WebAuthnAuthController extends Controller
             return response()->json(['error' => 'User not found'], 404);
         }
 
-        // Login user - Master Key validation happens client-side
+        // Validate Master Key hash
+        if (!$user->master_key_hash || !hash_equals($user->master_key_hash, $request->master_key_hash)) {
+            return response()->json(['error' => 'Invalid Master Key'], 401);
+        }
+
         Auth::login($user);
 
         return response()->json([
@@ -286,48 +293,30 @@ class WebAuthnAuthController extends Controller
     public function resetPin(Request $request)
     {
         $validated = $request->validate([
-            'email' => 'required|email',
             'encrypted_master_key' => 'required|string',
             'pin_salt' => 'required|string',
+            'master_key_hash' => 'required|string|size:64',
         ]);
 
-        $user = User::where('email', $validated['email'])->first();
+        $user = Auth::user();
         if (!$user) {
-            return response()->json(['error' => 'User not found'], 404);
+            return response()->json(['error' => 'Not authenticated'], 401);
         }
 
-        // Log before update
-        \Log::info('Before PIN reset:', [
-            'email' => $validated['email'],
-            'old_salt' => $user->pin_salt,
-            'new_salt' => $validated['pin_salt'],
-            'old_key_length' => strlen($user->encrypted_master_key ?? ''),
-            'new_key_length' => strlen($validated['encrypted_master_key']),
-        ]);
+        // Validate Master Key hash
+        if (!$user->master_key_hash || !hash_equals($user->master_key_hash, $validated['master_key_hash'])) {
+            return response()->json(['error' => 'Invalid Master Key'], 401);
+        }
 
         // Update user with new encrypted master key and salt
-        $updated = $user->update([
+        $user->update([
             'encrypted_master_key' => $validated['encrypted_master_key'],
             'pin_salt' => $validated['pin_salt'],
-        ]);
-
-        // Refresh to get latest data
-        $user->refresh();
-
-        // Log after update
-        \Log::info('After PIN reset:', [
-            'updated' => $updated,
-            'new_salt_in_db' => $user->pin_salt,
-            'new_key_length_in_db' => strlen($user->encrypted_master_key ?? ''),
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'PIN reset successfully',
-            'debug' => [
-                'salt_updated' => $user->pin_salt === $validated['pin_salt'],
-                'key_updated' => $user->encrypted_master_key === $validated['encrypted_master_key'],
-            ]
         ]);
     }
 }
