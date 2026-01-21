@@ -27,9 +27,5 @@ class AppServiceProvider extends ServiceProvider
                 ->numbers()
                 ->uncompromised();
         });
-
-//        \Illuminate\Support\Facades\Auth::provider('ciphersweet', function ($app, array $config) {
-//            return new \App\Auth\CipherSweetUserProvider($app['hash'], $config['model']);
-//        });
     }
 }

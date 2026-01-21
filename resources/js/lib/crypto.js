@@ -155,30 +155,3 @@ export async function decryptClientSide(encryptedBase64, key) {
 
     return new TextDecoder().decode(decryptedBuffer);
 }
-
-// ⚠️ LEGACY FUNCTION - COMMENTED OUT (NOT IN USE)
-// This function has security issues:
-// 1. Fixed default salt ('salt_fixo_do_projeto_passy') - allows rainbow table attacks
-// 2. Lower iteration count (100k vs 600k) - easier to brute force
-// 3. Not used anywhere in the codebase - use deriveKeyFromPIN() instead
-//
-// Kept commented for historical reference only. DO NOT USE.
-//
-// export async function deriveKey(password, salt = 'salt_fixo_do_projeto_passy') {
-//     const keyMaterial = await window.crypto.subtle.importKey(
-//         'raw', str2ab(password), { name: 'PBKDF2' }, false, ['deriveKey']
-//     );
-//
-//     return window.crypto.subtle.deriveKey(
-//         {
-//             name: 'PBKDF2',
-//             salt: str2ab(salt),
-//             iterations: 100000,
-//             hash: 'SHA-256',
-//         },
-//         keyMaterial,
-//         { name: 'AES-GCM', length: 256 },
-//         false,
-//         ['encrypt', 'decrypt']
-//     );
-// }
